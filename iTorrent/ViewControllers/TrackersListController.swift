@@ -15,7 +15,7 @@ class TrackersListController: ThemedUIViewController {
     @IBOutlet var removeButton: UIBarButtonItem!
 
     var managerHash: String!
-    var trackers: [Tracker] = []
+    var trackers: [TrackerModel] = []
     var runUpdate = true
 
     deinit {
@@ -23,22 +23,7 @@ class TrackersListController: ThemedUIViewController {
     }
 
     func update() {
-        var localTrackers: [Tracker] = []
-        let trackersRaw = get_trackers_by_hash(managerHash)
-        for iter in 0..<Int(trackersRaw.size) {
-            var tracker = Tracker()
-            tracker.url = String(validatingUTF8: trackersRaw.tracker_url[iter]) ?? "ERROR"
-            var msg = trackersRaw.working[iter] == 1 ? NSLocalizedString("Working", comment: "") : NSLocalizedString("Inactive", comment: "")
-            if trackersRaw.verified[iter] == 1 {
-                msg += ", " + NSLocalizedString("Verified", comment: "")
-            }
-            tracker.message = msg
-            tracker.peers = Int(trackersRaw.peers[iter])
-            tracker.seeders = Int(trackersRaw.seeders[iter])
-            tracker.leechs = Int(trackersRaw.leechs[iter])
-            localTrackers.append(tracker)
-        }
-        trackers = localTrackers
+        trackers = TorrentSdk.getTrackersByHash(hash: managerHash)
     }
 
     override func themeUpdate() {
@@ -49,7 +34,7 @@ class TrackersListController: ThemedUIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        scrape_tracker(managerHash)
+        TorrentSdk.scrapeTracker(hash: managerHash)
         DispatchQueue.global(qos: .background).async {
             while self.runUpdate {
                 let oldDataset = self.trackers
@@ -72,7 +57,7 @@ class TrackersListController: ThemedUIViewController {
                 sleep(1)
             }
         }
-        
+
         tableView.allowsMultipleSelectionDuringEditing = true
         tableView.dataSource = self
         tableView.delegate = self
@@ -108,10 +93,10 @@ class TrackersListController: ThemedUIViewController {
         let add = UIAlertAction(title: NSLocalizedString("Add", comment: ""), style: .default) { _ in
             let textField = controller.textFields![0]
 
-            Utils.checkFolderExist(path: Manager.configFolder)
+            Utils.checkFolderExist(path: Core.configFolder)
 
             if let _ = URL(string: textField.text!) {
-                print(add_tracker_to_torrent(self.managerHash, textField.text))
+                print(TorrentSdk.addTrackerToTorrent(hash: self.managerHash, trackerUrl: textField.text!))
             } else {
                 let alertController = ThemedUIAlertController(title: Localize.get("Error"),
                                                               message: Localize.get("Wrong link, check it and try again!"),
@@ -136,9 +121,7 @@ class TrackersListController: ThemedUIViewController {
                 self.trackers[$0.row].url
             }
 
-            _ = Utils.withArrayOfCStrings(urls) { args in
-                remove_tracker_from_torrent(self.managerHash, args, Int32(urls.count))
-            }
+            _ = TorrentSdk.removeTrackersFromTorrent(hash: self.managerHash, trackerUrls: urls)
         }
         let cancel = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel)
 
@@ -194,12 +177,4 @@ extension TrackersListController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didBeginMultipleSelectionInteractionAt indexPath: IndexPath) {
         setEditing(true, animated: true)
     }
-}
-
-struct Tracker: Equatable {
-    var url = ""
-    var message = ""
-    var seeders = 0
-    var peers = 0
-    var leechs = 0
 }

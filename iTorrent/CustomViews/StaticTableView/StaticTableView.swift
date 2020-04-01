@@ -33,7 +33,7 @@ class StaticTableView: ThemedUITableView {
 
     override func setup() {
         super.setup()
-
+        
         register(SegueCell.nib, forCellReuseIdentifier: SegueCell.name)
         register(SwitchCell.nib, forCellReuseIdentifier: SwitchCell.name)
         register(ButtonCell.nib, forCellReuseIdentifier: ButtonCell.name)
